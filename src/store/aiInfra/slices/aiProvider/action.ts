@@ -52,7 +52,7 @@ export interface AiProviderAction {
   ) => SWRResponse<AiProviderRuntimeState | undefined>;
 }
 
-export const createAiProviderSlice: StateCreator
+export const createAiProviderSlice: StateCreator<
   AiInfraStore,
   [['zustand/devtools', never]],
   [],

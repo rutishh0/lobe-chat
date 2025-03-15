@@ -38,7 +38,7 @@ export interface AiModelAction {
   useFetchAiProviderModels: (id: string) => SWRResponse<AiProviderModelListItem[]>;
 }
 
-export const createAiModelSlice: StateCreator
+export const createAiModelSlice: StateCreator<
   AiInfraStore,
   [['zustand/devtools', never]],
   [],
