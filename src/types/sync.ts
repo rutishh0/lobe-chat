@@ -13,6 +13,9 @@ export interface SyncConfig {
   maxRetries?: number;
 }
 
+// Added missing export
+export type PeerSyncStatus = 'connected' | 'disconnected' | 'syncing' | 'error';
+
 export const DEFAULT_SYNC_CONFIG: SyncConfig = {
   autoSync: true,
   syncInterval: 300000, // 5 minutes

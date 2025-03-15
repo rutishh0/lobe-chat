@@ -29,4 +29,8 @@ export interface SessionStore {
   groups: SessionGroup[];
 }
 
+// Added missing exports
+export type SessionDefaultGroup = 'default' | 'archived' | 'starred';
+export type LobeSessionType = 'chat' | 'agent' | 'image';
+
 export const INBOX_SESSION_ID = 'inbox';
