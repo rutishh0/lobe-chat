@@ -29,7 +29,7 @@ export const DEFAULT_USER_PREFERENCE: UserPreference = {
   settings: DEFAULT_USER_SETTINGS,
 };
 
-// Add missing types
+// Added missing schema as interfaces instead of types
 export interface NextAuthAccountSchame {
   id: string;
   userId: string;

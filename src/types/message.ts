@@ -21,7 +21,7 @@ export interface MessageList {
   nextCursor?: string;
 }
 
-// Missing export that's causing build errors
+// Exporting the schema using interface rather than a type
 export interface MessageToolCallSchema {
   id: string;
   type: string;
@@ -33,7 +33,7 @@ export interface MessageToolCallSchema {
   result?: any;
 }
 
-// Message constants that were missing
+// Message constants
 export const LOADING_FLAT = 'loading_flat';
 export const MESSAGE_CANCEL_FLAT = 'message_cancel_flat';
 export const THREAD_DRAFT_ID = 'thread_draft_id';

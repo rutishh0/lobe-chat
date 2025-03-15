@@ -30,7 +30,16 @@ export interface SessionStore {
 }
 
 // Added missing exports
-export type SessionDefaultGroup = 'default' | 'archived' | 'starred';
-export type LobeSessionType = 'chat' | 'agent' | 'image';
+export enum SessionDefaultGroup {
+  default = 'default',
+  archived = 'archived',
+  starred = 'starred'
+}
+
+export enum LobeSessionType {
+  chat = 'chat',
+  agent = 'agent',
+  image = 'image'
+}
 
 export const INBOX_SESSION_ID = 'inbox';

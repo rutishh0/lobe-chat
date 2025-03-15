@@ -13,8 +13,13 @@ export interface SyncConfig {
   maxRetries?: number;
 }
 
-// Added missing export
-export type PeerSyncStatus = 'connected' | 'disconnected' | 'syncing' | 'error';
+// Changed from type to enum to match expected usage
+export enum PeerSyncStatus {
+  connected = 'connected',
+  disconnected = 'disconnected',
+  syncing = 'syncing',
+  error = 'error'
+}
 
 export const DEFAULT_SYNC_CONFIG: SyncConfig = {
   autoSync: true,
