@@ -2,6 +2,12 @@ import NextAuth from 'next-auth';
 
 import authConfig from './auth.config';
 
+// Ensure config.providers is always an array
+const safeConfig = {
+  ...authConfig,
+  providers: Array.isArray(authConfig.providers) ? authConfig.providers : [],
+};
+
 /**
  * NextAuth initialization without Database adapter
  *
@@ -23,4 +29,26 @@ import authConfig from './auth.config';
  * signOut();
  * ```
  */
-export default NextAuth(authConfig);
+export default NextAuth({
+  ...safeConfig,
+  // Add defensive code for any callbacks that might use filter()
+  callbacks: {
+    ...safeConfig.callbacks,
+    async jwt(params) {
+      try {
+        return await safeConfig.callbacks?.jwt?.(params) || params.token;
+      } catch (error) {
+        console.error('[NextAuth] Error in jwt callback:', error);
+        return params.token;
+      }
+    },
+    async session(params) {
+      try {
+        return await safeConfig.callbacks?.session?.(params) || params.session;
+      } catch (error) {
+        console.error('[NextAuth] Error in session callback:', error);
+        return params.session;
+      }
+    },
+  },
+});
