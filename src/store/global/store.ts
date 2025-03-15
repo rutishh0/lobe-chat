@@ -8,8 +8,9 @@ import { type GlobalClientDBAction, clientDBSlice } from './actions/clientDb';
 import { type GlobalGeneralAction, generalActionSlice } from './actions/general';
 import { type GlobalWorkspacePaneAction, globalWorkspaceSlice } from './actions/workspacePane';
 import { type GlobalState, initialState } from './initialState';
+import { SIMPLIFIED_STATUS } from './overrides';
 
-//  ===============  聚合 createStoreFn ============ //
+//  ===============  Store Creation ============ //
 
 export interface GlobalStore
   extends GlobalState,
@@ -21,12 +22,15 @@ export interface GlobalStore
 
 const createStore: StateCreator<GlobalStore, [['zustand/devtools', never]]> = (...parameters) => ({
   ...initialState,
+  // Override initial state with simplified UI settings
+  status: SIMPLIFIED_STATUS,
+  // Include all action slices
   ...globalWorkspaceSlice(...parameters),
   ...clientDBSlice(...parameters),
   ...generalActionSlice(...parameters),
 });
 
-//  ===============  实装 useStore ============ //
+//  ===============  Store Implementation ============ //
 
 const devtools = createDevtools('global');
 

@@ -100,15 +100,10 @@ const AppTheme = memo<AppThemeProps>(
     customFontURL,
     customFontFamily,
   }) => {
-    // console.debug('server:appearance', defaultAppearance);
-    // console.debug('server:primaryColor', defaultPrimaryColor);
-    // console.debug('server:neutralColor', defaultNeutralColor);
-    const themeMode = useUserStore(userGeneralSettingsSelectors.currentThemeMode);
+    const themeMode = 'dark'; // Force dark mode for Elevate theme
     const { styles, cx, theme } = useStyles();
-    const [primaryColor, neutralColor] = useUserStore((s) => [
-      userGeneralSettingsSelectors.primaryColor(s),
-      userGeneralSettingsSelectors.neutralColor(s),
-    ]);
+    const primaryColor = 'purple' as PrimaryColors; // Use valid theme color
+    const neutralColor = 'slate' as NeutralColors; // Use valid neutral color
 
     useEffect(() => {
       setCookie(LOBE_THEME_PRIMARY_COLOR, primaryColor);
@@ -122,17 +117,28 @@ const AppTheme = memo<AppThemeProps>(
       <ThemeProvider
         className={cx(styles.app, styles.scrollbar, styles.scrollbarPolyfill)}
         customTheme={{
-          neutralColor: neutralColor ?? defaultNeutralColor,
-          primaryColor: primaryColor ?? defaultPrimaryColor,
+          neutralColor: 'slate' as NeutralColors,
+          primaryColor: 'purple' as PrimaryColors,
         }}
-        defaultAppearance={defaultAppearance}
+        defaultAppearance="dark"
         onAppearanceChange={(appearance) => {
           setCookie(LOBE_THEME_APPEARANCE, appearance);
         }}
         theme={{
           cssVar: true,
           token: {
-            fontFamily: customFontFamily ? `${customFontFamily},${theme.fontFamily}` : undefined,
+            // Elevate theme tokens
+            colorBgLayout: '#000000',
+            colorBgContainer: '#111111',
+            colorBgElevated: '#1A1A1A',
+            colorText: '#FFFFFF',
+            colorTextSecondary: 'rgba(255, 255, 255, 0.75)',
+            colorBorder: 'rgba(255, 255, 255, 0.15)',
+            controlHeight: 40,
+            borderRadius: 8,
+            fontFamily: customFontFamily 
+              ? `${customFontFamily},Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial`
+              : 'Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial',
           },
         }}
         themeMode={themeMode}

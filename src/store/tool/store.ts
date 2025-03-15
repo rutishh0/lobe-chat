@@ -1,34 +1,30 @@
-import { shallow } from 'zustand/shallow';
-import { createWithEqualityFn } from 'zustand/traditional';
-import { StateCreator } from 'zustand/vanilla';
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 
-import { createDevtools } from '../middleware/createDevtools';
-import { ToolStoreState, initialState } from './initialState';
-import { BuiltinToolAction, createBuiltinToolSlice } from './slices/builtin';
-import { CustomPluginAction, createCustomPluginSlice } from './slices/customPlugin';
-import { PluginAction, createPluginSlice } from './slices/plugin';
-import { PluginStoreAction, createPluginStoreSlice } from './slices/store';
+import type { ToolStoreItem } from '../../types/tool';
+import { createToolStoreSlice } from './slices/store/action';
 
-//  ===============  聚合 createStoreFn ============ //
+export interface ToolStore {
+  // State
+  installedPlugins: ToolStoreItem[];
+  pluginStoreList: ToolStoreItem[];
+  pluginInstallLoading: Record<string, boolean>;
+}
 
-export type ToolStore = ToolStoreState &
-  CustomPluginAction &
-  PluginAction &
-  PluginStoreAction &
-  BuiltinToolAction;
+const initialState: ToolStore = {
+  installedPlugins: [],
+  pluginStoreList: [],
+  pluginInstallLoading: {},
+};
 
-const createStore: StateCreator<ToolStore, [['zustand/devtools', never]]> = (...parameters) => ({
-  ...initialState,
-  ...createPluginSlice(...parameters),
-  ...createCustomPluginSlice(...parameters),
-  ...createPluginStoreSlice(...parameters),
-  ...createBuiltinToolSlice(...parameters),
-});
-
-//  ===============  实装 useStore ============ //
-
-const devtools = createDevtools('tools');
-
-export const useToolStore = createWithEqualityFn<ToolStore>()(devtools(createStore), shallow);
+export const useToolStore = create<ToolStore>()(
+  devtools(
+    () => ({
+      ...initialState,
+      ...createToolStoreSlice(),
+    }),
+    { name: 'ToolStore' }
+  )
+);
 
 export const getToolStoreState = () => useToolStore.getState();

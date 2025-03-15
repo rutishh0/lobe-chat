@@ -8,6 +8,7 @@ import { Flexbox } from 'react-layout-kit';
 import { BANNER_HEIGHT } from '@/features/AlertBanner/CloudBanner';
 import { usePlatform } from '@/hooks/usePlatform';
 import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
+import { GlobalStore, useGlobalStore } from '@/store/global/store';
 
 import SideBar from './SideBar';
 
@@ -16,8 +17,8 @@ const CloudBanner = dynamic(() => import('@/features/AlertBanner/CloudBanner'));
 const Layout = memo<PropsWithChildren>(({ children }) => {
   const { isPWA } = usePlatform();
   const theme = useTheme();
-
   const { showCloudPromotion } = useServerConfigStore(featureFlagsSelectors);
+  const showSidebar = useGlobalStore((s: GlobalStore) => s.status.showChatSideBar);
 
   return (
     <>
@@ -28,11 +29,12 @@ const Layout = memo<PropsWithChildren>(({ children }) => {
         style={{
           borderTop: isPWA ? `1px solid ${theme.colorBorder}` : undefined,
           position: 'relative',
+          background: '#000000',
         }}
         width={'100%'}
       >
-        <SideBar />
-        {children}
+        {showSidebar && <SideBar />}
+        <Flexbox flex={1}>{children}</Flexbox>
       </Flexbox>
     </>
   );

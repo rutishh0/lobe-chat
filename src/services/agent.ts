@@ -1,49 +1,26 @@
-import { lambdaClient } from '@/libs/trpc/client';
+import type { ChatMessage } from '@/types/message';
 
 class AgentService {
-  createAgentKnowledgeBase = async (
-    agentId: string,
-    knowledgeBaseId: string,
-    enabled?: boolean,
-  ) => {
-    return lambdaClient.agent.createAgentKnowledgeBase.mutate({
-      agentId,
-      enabled,
-      knowledgeBaseId,
-    });
-  };
+  async sendMessage(message: ChatMessage): Promise<void> {
+    // In a real implementation, this would send a message to an AI agent
+  }
 
-  deleteAgentKnowledgeBase = async (agentId: string, knowledgeBaseId: string) => {
-    return lambdaClient.agent.deleteAgentKnowledgeBase.mutate({ agentId, knowledgeBaseId });
-  };
+  async stopGeneration(): Promise<void> {
+    // In a real implementation, this would stop the AI agent's generation
+  }
 
-  toggleKnowledgeBase = async (agentId: string, knowledgeBaseId: string, enabled?: boolean) => {
-    return lambdaClient.agent.toggleKnowledgeBase.mutate({
-      agentId,
-      enabled,
-      knowledgeBaseId,
-    });
-  };
+  async regenerateMessage(messageId: string): Promise<void> {
+    // In a real implementation, this would trigger message regeneration
+  }
 
-  createAgentFiles = async (agentId: string, fileIds: string[], enabled?: boolean) => {
-    return lambdaClient.agent.createAgentFiles.mutate({ agentId, enabled, fileIds });
-  };
+  async getMessageHistory(sessionId: string): Promise<ChatMessage[]> {
+    // In a real implementation, this would fetch message history from an API
+    return [];
+  }
 
-  deleteAgentFile = async (agentId: string, fileId: string) => {
-    return lambdaClient.agent.deleteAgentFile.mutate({ agentId, fileId });
-  };
-
-  toggleFile = async (agentId: string, fileId: string, enabled?: boolean) => {
-    return lambdaClient.agent.toggleFile.mutate({
-      agentId,
-      enabled,
-      fileId,
-    });
-  };
-
-  getFilesAndKnowledgeBases = async (agentId: string) => {
-    return lambdaClient.agent.getKnowledgeBasesAndFiles.query({ agentId });
-  };
+  async clearMessageHistory(sessionId: string): Promise<void> {
+    // In a real implementation, this would clear message history via API
+  }
 }
 
 export const agentService = new AgentService();

@@ -1,113 +1,205 @@
-import { LobeChatPluginMeta } from '@lobehub/chat-plugin-sdk';
-import { t } from 'i18next';
-import { produce } from 'immer';
-import useSWR, { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { notification } from '@/components/AntdStaticMethods';
-import { pluginService } from '@/services/plugin';
-import { toolService } from '@/services/tool';
-import { pluginStoreSelectors } from '@/store/tool/selectors';
-import { LobeTool } from '@/types/tool';
-import { PluginInstallError } from '@/types/tool/plugin';
-import { setNamespace } from '@/utils/storeDebug';
+import { DEFAULT_TOOL_STORE_DATA, isValidToolType } from '../../../../const/tool';
+import { useClientDataSWR, type SWRResponse, mutate } from '../../../../libs/swr';
+import { toolService } from '../../../../services/tool';
+import type { ToolStore } from '../../store';
+import type { ToolStoreItem } from '../../../../types/tool';
 
-import { ToolStore } from '../../store';
-import { PluginStoreState } from './initialState';
+const FETCH_TOOL_STORE_KEY = 'fetchToolStore';
 
-const n = setNamespace('pluginStore');
+const translate = {
+  installing: 'Installing...',
+  toolInstalling: 'Installing tool...',
+  installSuccess: 'Installation successful',
+  toolInstallSuccess: 'Tool installed successfully',
+  installFailed: 'Installation failed',
+  toolInstallFailed: 'Tool installation failed',
+  uninstalling: 'Uninstalling...',
+  toolUninstalling: 'Uninstalling tool...',
+  uninstallSuccess: 'Uninstallation successful',
+  toolUninstallSuccess: 'Tool uninstalled successfully',
+  uninstallFailed: 'Uninstallation failed',
+  toolUninstallFailed: 'Tool uninstallation failed',
+  updating: 'Updating...',
+  toolUpdating: 'Updating tool...',
+  updateSuccess: 'Update successful',
+  toolUpdateSuccess: 'Tool updated successfully',
+  updateFailed: 'Update failed',
+  toolUpdateFailed: 'Tool update failed',
+  configSaved: 'Configuration saved',
+  configSaveFailed: 'Failed to save configuration',
+  invalidToolType: 'Invalid tool type',
+};
 
-const INSTALLED_PLUGINS = 'loadInstalledPlugins';
-
-export interface PluginStoreAction {
-  installPlugin: (identifier: string, type?: 'plugin' | 'customPlugin') => Promise<void>;
-  installPlugins: (plugins: string[]) => Promise<void>;
-  loadPluginStore: () => Promise<LobeChatPluginMeta[]>;
-  refreshPlugins: () => Promise<void>;
-  uninstallPlugin: (identifier: string) => Promise<void>;
-
-  updateInstallLoadingState: (key: string, value: boolean | undefined) => void;
-  useFetchInstalledPlugins: (enabled: boolean) => SWRResponse<LobeTool[]>;
-  useFetchPluginStore: () => SWRResponse<LobeChatPluginMeta[]>;
+export interface ToolStoreAction {
+  useFetchToolStore: () => SWRResponse<ToolStoreItem[]>;
+  installTool: (id: string) => Promise<void>;
+  uninstallTool: (id: string) => Promise<void>;
+  updateTool: (id: string, version: string) => Promise<void>;
+  saveToolConfig: (id: string, config: Record<string, unknown>) => Promise<void>;
+  enableTool: (id: string) => Promise<void>;
+  disableTool: (id: string) => Promise<void>;
+  getToolConfig: (id: string) => Promise<Record<string, unknown> | null>;
 }
 
-export const createPluginStoreSlice: StateCreator<
+export const createToolStoreSlice: StateCreator<
   ToolStore,
   [['zustand/devtools', never]],
   [],
-  PluginStoreAction
-> = (set, get) => ({
-  installPlugin: async (name, type = 'plugin') => {
-    const plugin = pluginStoreSelectors.getPluginById(name)(get());
-    if (!plugin) return;
+  ToolStoreAction
+> = () => ({
+  installTool: async (id) => {
+    const messageKey = 'installTool';
+    
+    notification.open({
+      description: translate.installing,
+      key: messageKey,
+      message: translate.toolInstalling,
+      type: 'info',
+    });
 
-    const { updateInstallLoadingState, refreshPlugins } = get();
     try {
-      updateInstallLoadingState(name, true);
-      const data = await toolService.getToolManifest(plugin.manifest);
+      await toolService.installTool(id);
+      await mutate(FETCH_TOOL_STORE_KEY);
 
-      // 4. 存储 manifest 信息
-      await pluginService.installPlugin({ identifier: plugin.identifier, manifest: data, type });
-      await refreshPlugins();
-
-      updateInstallLoadingState(name, undefined);
+      notification.open({
+        description: translate.installSuccess,
+        key: messageKey,
+        message: translate.toolInstallSuccess,
+        type: 'success',
+      });
     } catch (error) {
-      console.error(error);
-      updateInstallLoadingState(name, undefined);
-
-      const err = error as PluginInstallError;
-      notification.error({
-        description: t(`error.${err.message}`, { ns: 'plugin' }),
-        message: t('error.installError', { name: plugin.meta.title, ns: 'plugin' }),
+      notification.open({
+        description: translate.installFailed,
+        key: messageKey,
+        message: translate.toolInstallFailed,
+        type: 'error',
       });
     }
   },
-  installPlugins: async (plugins) => {
-    const { installPlugin } = get();
 
-    await Promise.all(plugins.map((identifier) => installPlugin(identifier)));
-  },
-  loadPluginStore: async () => {
-    const pluginMarketIndex = await toolService.getToolList();
+  uninstallTool: async (id) => {
+    const messageKey = 'uninstallTool';
+    
+    notification.open({
+      description: translate.uninstalling,
+      key: messageKey,
+      message: translate.toolUninstalling,
+      type: 'info',
+    });
 
-    set({ pluginStoreList: pluginMarketIndex }, false, n('loadPluginList'));
+    try {
+      await toolService.uninstallTool(id);
+      await mutate(FETCH_TOOL_STORE_KEY);
 
-    return pluginMarketIndex;
-  },
-  refreshPlugins: async () => {
-    await mutate(INSTALLED_PLUGINS);
-  },
-  uninstallPlugin: async (identifier) => {
-    await pluginService.uninstallPlugin(identifier);
-    await get().refreshPlugins();
-  },
-  updateInstallLoadingState: (key, value) => {
-    set(
-      produce((draft: PluginStoreState) => {
-        draft.pluginInstallLoading[key] = value;
-      }),
-      false,
-      n('updateInstallLoadingState'),
-    );
+      notification.open({
+        description: translate.uninstallSuccess,
+        key: messageKey,
+        message: translate.toolUninstallSuccess,
+        type: 'success',
+      });
+    } catch (error) {
+      notification.open({
+        description: translate.uninstallFailed,
+        key: messageKey,
+        message: translate.toolUninstallFailed,
+        type: 'error',
+      });
+    }
   },
 
-  useFetchInstalledPlugins: (enabled: boolean) =>
-    useSWR<LobeTool[]>(enabled ? INSTALLED_PLUGINS : null, pluginService.getInstalledPlugins, {
-      fallbackData: [],
-      onSuccess: (data) => {
-        set(
-          { installedPlugins: data, loadingInstallPlugins: false },
-          false,
-          n('useFetchInstalledPlugins'),
-        );
+  updateTool: async (id, version) => {
+    const messageKey = 'updateTool';
+    
+    notification.open({
+      description: translate.updating,
+      key: messageKey,
+      message: translate.toolUpdating,
+      type: 'info',
+    });
+
+    try {
+      await toolService.updateTool(id, version);
+      await mutate(FETCH_TOOL_STORE_KEY);
+
+      notification.open({
+        description: translate.updateSuccess,
+        key: messageKey,
+        message: translate.toolUpdateSuccess,
+        type: 'success',
+      });
+    } catch (error) {
+      notification.open({
+        description: translate.updateFailed,
+        key: messageKey,
+        message: translate.toolUpdateFailed,
+        type: 'error',
+      });
+    }
+  },
+
+  saveToolConfig: async (id, config) => {
+    try {
+      await toolService.saveToolConfig(id, config);
+      notification.success({
+        message: translate.configSaved,
+      });
+    } catch (error) {
+      notification.error({
+        message: translate.configSaveFailed,
+      });
+    }
+  },
+
+  enableTool: async (id) => {
+    try {
+      await toolService.enableTool(id);
+      await mutate(FETCH_TOOL_STORE_KEY);
+    } catch (error) {
+      notification.error({
+        message: translate.toolUpdateFailed,
+      });
+    }
+  },
+
+  disableTool: async (id) => {
+    try {
+      await toolService.disableTool(id);
+      await mutate(FETCH_TOOL_STORE_KEY);
+    } catch (error) {
+      notification.error({
+        message: translate.toolUpdateFailed,
+      });
+    }
+  },
+
+  getToolConfig: async (id) => {
+    try {
+      return await toolService.getToolConfig(id);
+    } catch {
+      return null;
+    }
+  },
+
+  useFetchToolStore: () =>
+    useClientDataSWR<ToolStoreItem[]>(
+      FETCH_TOOL_STORE_KEY,
+      async () => {
+        try {
+          return await toolService.getToolStoreList();
+        } catch {
+          return DEFAULT_TOOL_STORE_DATA;
+        }
       },
-      revalidateOnFocus: false,
-      suspense: true,
-    }),
-  useFetchPluginStore: () =>
-    useSWR<LobeChatPluginMeta[]>('loadPluginStore', get().loadPluginStore, {
-      fallbackData: [],
-      revalidateOnFocus: false,
-      suspense: true,
-    }),
+      {
+        fallbackData: DEFAULT_TOOL_STORE_DATA,
+        onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
+          if (retryCount > 3) return;
+
+          setTimeout(() => revalidate({ retryCount }), 5000);
+        },
+      },
+    ),
 });
