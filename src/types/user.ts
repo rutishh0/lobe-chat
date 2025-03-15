@@ -28,3 +28,31 @@ export const DEFAULT_USER_PREFERENCE: UserPreference = {
   telemetry: false,
   settings: DEFAULT_USER_SETTINGS,
 };
+
+// Add missing types
+export interface NextAuthAccountSchame {
+  id: string;
+  userId: string;
+  type: string;
+  provider: string;
+  providerAccountId: string;
+  refresh_token?: string;
+  access_token?: string;
+  expires_at?: number;
+  token_type?: string;
+  scope?: string;
+  id_token?: string;
+  session_state?: string;
+}
+
+export interface UserGuideSchema {
+  id: string;
+  userId: string;
+  hasShownWelcomeScreen?: boolean;
+  hasShownAgentHelp?: boolean;
+  hasShownSessionHelp?: boolean;
+  hasShownChatHelp?: boolean;
+  hasShownImportAgentHelp?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
