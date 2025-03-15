@@ -1,11 +1,9 @@
 import { uniqBy } from 'lodash-es';
-import { SWRResponse } from 'swr';
-import { mutate } from 'swr/mutation';
 import { StateCreator } from 'zustand/vanilla';
 
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
 import { isDeprecatedEdition } from '@/const/version';
-import { useClientDataSWR } from '@/libs/swr';
+import { SWRResponse, mutate, useClientDataSWR } from '@/libs/swr';
 import { aiProviderService } from '@/services/aiProvider';
 import { AiInfraStore } from '@/store/aiInfra/store';
 import { ModelAbilities } from '@/types/aiModel';
@@ -92,15 +90,36 @@ export const createAiProviderSlice: StateCreator<
     );
   },
   refreshAiProviderDetail: async () => {
-    await mutate([AiProviderSwrKey.fetchAiProviderItem, get().activeAiProvider]);
-    await get().refreshAiProviderRuntimeState();
+    try {
+      // Use the custom mutate function from libs/swr
+      await mutate([AiProviderSwrKey.fetchAiProviderItem, get().activeAiProvider]);
+      await get().refreshAiProviderRuntimeState();
+    } catch (error) {
+      console.error('Error refreshing provider detail:', error);
+      // Fallback to state-based refresh
+      set({ refreshProviderDetailTrigger: Date.now() }, false, 'refreshAiProviderDetail');
+    }
   },
   refreshAiProviderList: async () => {
-    await mutate(AiProviderSwrKey.fetchAiProviderList);
-    await get().refreshAiProviderRuntimeState();
+    try {
+      // Use the custom mutate function from libs/swr
+      await mutate(AiProviderSwrKey.fetchAiProviderList);
+      await get().refreshAiProviderRuntimeState();
+    } catch (error) {
+      console.error('Error refreshing provider list:', error);
+      // Fallback to state-based refresh
+      set({ refreshProviderListTrigger: Date.now() }, false, 'refreshAiProviderList');
+    }
   },
   refreshAiProviderRuntimeState: async () => {
-    await mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, true]);
+    try {
+      // Use the custom mutate function from libs/swr
+      await mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, true]);
+    } catch (error) {
+      console.error('Error refreshing provider runtime state:', error);
+      // Fallback to state-based refresh
+      set({ refreshRuntimeStateTrigger: Date.now() }, false, 'refreshAiProviderRuntimeState');
+    }
   },
   removeAiProvider: async (id) => {
     await aiProviderService.deleteAiProvider(id);

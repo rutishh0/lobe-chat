@@ -1,9 +1,7 @@
 import isEqual from 'fast-deep-equal';
-import { SWRResponse } from 'swr';
-import { mutate } from 'swr/mutation';
 import { StateCreator } from 'zustand/vanilla';
 
-import { useClientDataSWR } from '@/libs/swr';
+import { SWRResponse, mutate, useClientDataSWR } from '@/libs/swr';
 import { aiModelService } from '@/services/aiModel';
 import { AiInfraStore } from '@/store/aiInfra/store';
 import {
@@ -104,9 +102,16 @@ export const createAiModelSlice: StateCreator<
     );
   },
   refreshAiModelList: async () => {
-    await mutate([FETCH_AI_PROVIDER_MODEL_LIST_KEY, get().activeAiProvider]);
-    // make refresh provide runtime state async, not block
-    get().refreshAiProviderRuntimeState();
+    try {
+      // Use the custom mutate function from the libs/swr wrapper
+      await mutate([FETCH_AI_PROVIDER_MODEL_LIST_KEY, get().activeAiProvider]);
+      // make refresh provide runtime state async, not block
+      get().refreshAiProviderRuntimeState();
+    } catch (error) {
+      console.error('Error refreshing model list:', error);
+      // If mutate fails, try a state-based refresh as backup
+      set({ refreshTrigger: Date.now() }, false, 'refreshAiModelList');
+    }
   },
   removeAiModel: async (id, providerId) => {
     await aiModelService.deleteAiModel({ id, providerId });

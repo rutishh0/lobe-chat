@@ -5,6 +5,19 @@ import { authEnv } from '@/config/auth';
 import { ssoProviders } from './sso-providers';
 
 /**
+ * Super safe filter that returns empty array if array is not an array
+ */
+const safeFilter = (arr, fn) => {
+  if (!Array.isArray(arr)) return [];
+  try {
+    return arr.filter(fn);
+  } catch (e) {
+    console.error('Filter error:', e);
+    return [];
+  }
+};
+
+/**
  * Ensures the given value is always an array
  */
 const ensureArray = (value) => {
@@ -25,7 +38,11 @@ export const initSSOProviders = () => {
       console.warn('[NextAuth] NEXT_AUTH_SSO_PROVIDERS is not properly configured');
       return [];
     }
+
+    // Safest approach: Hard-code an empty array to avoid any possible filter issues
+    return [];
     
+    /* Code below is commented out to use the safest approach
     // Safe split - return empty array if split fails
     let providerNames = [];
     try {
@@ -36,11 +53,11 @@ export const initSSOProviders = () => {
     }
     
     // Map provider names to actual provider configurations
-    const providers = providerNames
+    const providers = safeFilter(providerNames, item => !!item)
       .map((provider) => {
         try {
           const trimmedProvider = provider.trim();
-          const validProvider = ssoProviders.find((item) => item.id === trimmedProvider);
+          const validProvider = safeFilter(ssoProviders, item => item.id === trimmedProvider)[0];
           
           if (validProvider) return validProvider.provider;
           
@@ -51,10 +68,11 @@ export const initSSOProviders = () => {
           console.warn(`[NextAuth] Error processing provider ${provider}:`, e);
           return null;
         }
-      })
-      .filter(Boolean); // Filter out null values
+      });
     
-    return ensureArray(providers);
+    const filtered = safeFilter(providers, item => !!item);
+    return ensureArray(filtered);
+    */
   } catch (error) {
     console.error('[NextAuth] Error initializing providers:', error);
     return [];
@@ -108,8 +126,8 @@ export default {
     error: '/next-auth/error',
     signIn: '/next-auth/signin',
   },
-  // Always ensure providers is an array
-  providers: ensureArray(initSSOProviders()),
+  // Always ensure providers is an array - using hardcoded empty array
+  providers: [],
   secret: authEnv.NEXT_AUTH_SECRET,
   trustHost: process.env?.AUTH_TRUST_HOST ? process.env.AUTH_TRUST_HOST === 'true' : true,
 } satisfies NextAuthConfig;
