@@ -1,7 +1,5 @@
 import isEqual from 'fast-deep-equal';
-import { SWRResponse } from 'swr';
-import { unstable_serialize } from 'swr';
-import { cache } from 'swr/_internal';
+import { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { useClientDataSWR } from '@/libs/swr';
@@ -105,8 +103,7 @@ export const createAiModelSlice: StateCreator<
     );
   },
   refreshAiModelList: async () => {
-    // Use SWR's cache directly to mutate data
-    cache.delete(unstable_serialize([FETCH_AI_PROVIDER_MODEL_LIST_KEY, get().activeAiProvider]));
+    await mutate([FETCH_AI_PROVIDER_MODEL_LIST_KEY, get().activeAiProvider]);
     // make refresh provide runtime state async, not block
     get().refreshAiProviderRuntimeState();
   },

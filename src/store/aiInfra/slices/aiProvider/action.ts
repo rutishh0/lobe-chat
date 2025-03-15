@@ -1,7 +1,5 @@
 import { uniqBy } from 'lodash-es';
-import { SWRResponse } from 'swr';
-import { unstable_serialize } from 'swr';
-import { cache } from 'swr/_internal';
+import { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
@@ -93,15 +91,15 @@ export const createAiProviderSlice: StateCreator<
     );
   },
   refreshAiProviderDetail: async () => {
-    cache.delete(unstable_serialize([AiProviderSwrKey.fetchAiProviderItem, get().activeAiProvider]));
+    await mutate([AiProviderSwrKey.fetchAiProviderItem, get().activeAiProvider]);
     await get().refreshAiProviderRuntimeState();
   },
   refreshAiProviderList: async () => {
-    cache.delete(unstable_serialize(AiProviderSwrKey.fetchAiProviderList));
+    await mutate(AiProviderSwrKey.fetchAiProviderList);
     await get().refreshAiProviderRuntimeState();
   },
   refreshAiProviderRuntimeState: async () => {
-    cache.delete(unstable_serialize([AiProviderSwrKey.fetchAiProviderRuntimeState, true]));
+    await mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, true]);
   },
   removeAiProvider: async (id) => {
     await aiProviderService.deleteAiProvider(id);
