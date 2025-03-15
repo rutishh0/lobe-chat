@@ -10,15 +10,17 @@ const ensureArray = (value) => {
 
 // Make a completely safe config where we ensure all properties have valid default values
 const createSafeConfig = (inputConfig) => {
+  // Create a completely safe base config
   const safeConfig = {
-    ...inputConfig,
-    providers: ensureArray(inputConfig.providers),
+    providers: [],
     callbacks: {
-      // Wrap callbacks to handle errors
       async jwt(params) {
         try {
-          const result = await inputConfig?.callbacks?.jwt?.(params);
-          return result || params.token || {};
+          if (inputConfig?.callbacks?.jwt) {
+            const result = await inputConfig.callbacks.jwt(params);
+            if (result) return result;
+          }
+          return params.token || {};
         } catch (error) {
           console.error('[NextAuth] Error in jwt callback:', error);
           return params.token || {};
@@ -26,8 +28,11 @@ const createSafeConfig = (inputConfig) => {
       },
       async session(params) {
         try {
-          const result = await inputConfig?.callbacks?.session?.(params);
-          return result || params.session || {};
+          if (inputConfig?.callbacks?.session) {
+            const result = await inputConfig.callbacks.session(params);
+            if (result) return result;
+          }
+          return params.session || {};
         } catch (error) {
           console.error('[NextAuth] Error in session callback:', error);
           return params.session || {};
@@ -36,6 +41,16 @@ const createSafeConfig = (inputConfig) => {
       // Add other callbacks as needed with similar error handling
     },
   };
+  
+  // Only then apply the input config with extreme caution
+  if (inputConfig && typeof inputConfig === 'object') {
+    if (inputConfig.providers) safeConfig.providers = ensureArray(inputConfig.providers);
+    // Copy other safe properties
+    if (inputConfig.pages) safeConfig.pages = inputConfig.pages;
+    if (inputConfig.secret) safeConfig.secret = inputConfig.secret;
+    if (inputConfig.debug) safeConfig.debug = inputConfig.debug;
+    if (inputConfig.trustHost) safeConfig.trustHost = inputConfig.trustHost;
+  }
   
   return safeConfig;
 };
@@ -64,4 +79,11 @@ const safeConfig = createSafeConfig(authConfig);
  * signOut();
  * ```
  */
-export default NextAuth(safeConfig);
+export default NextAuth({
+  // Spread safe config first as a base
+  ...safeConfig,
+  // Apply session strategy last to ensure it overrides
+  session: {
+    strategy: 'jwt',
+  }
+});

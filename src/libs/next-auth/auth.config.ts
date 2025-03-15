@@ -126,7 +126,7 @@ export default {
     error: '/next-auth/error',
     signIn: '/next-auth/signin',
   },
-  // Always ensure providers is an array - using hardcoded empty array
+  // Always ensure providers is an empty array
   providers: [],
   secret: authEnv.NEXT_AUTH_SECRET,
   trustHost: process.env?.AUTH_TRUST_HOST ? process.env.AUTH_TRUST_HOST === 'true' : true,

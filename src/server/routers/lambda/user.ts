@@ -12,7 +12,7 @@ import { authedProcedure, router } from '@/libs/trpc';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 import { UserService } from '@/server/services/user';
 import {
-  NextAuthAccountSchame,
+  NextAuthAccountSchema,
   UserGuideSchema,
   UserInitializationState,
   UserPreference,
