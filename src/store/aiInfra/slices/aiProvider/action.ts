@@ -1,7 +1,5 @@
 import { uniqBy } from 'lodash-es';
-// Fix the import for mutate
-import { SWRResponse } from 'swr';
-import { mutate } from 'swr/mutation';
+import { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
