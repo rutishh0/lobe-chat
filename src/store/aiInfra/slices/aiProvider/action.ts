@@ -1,5 +1,7 @@
 import { uniqBy } from 'lodash-es';
-import { SWRResponse, mutate } from 'swr';
+// Fix the import for mutate
+import { SWRResponse } from 'swr';
+import { mutate } from 'swr/mutation';
 import { StateCreator } from 'zustand/vanilla';
 
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
@@ -50,7 +52,7 @@ export interface AiProviderAction {
   ) => SWRResponse<AiProviderRuntimeState | undefined>;
 }
 
-export const createAiProviderSlice: StateCreator<
+export const createAiProviderSlice: StateCreator
   AiInfraStore,
   [['zustand/devtools', never]],
   [],

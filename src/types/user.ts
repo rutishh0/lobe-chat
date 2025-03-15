@@ -29,8 +29,8 @@ export const DEFAULT_USER_PREFERENCE: UserPreference = {
   settings: DEFAULT_USER_SETTINGS,
 };
 
-// Added missing schema as interfaces instead of types
-export interface NextAuthAccountSchame {
+// Fix the interface name (remove 'Schame')
+export interface NextAuthAccount {
   id: string;
   userId: string;
   type: string;
@@ -45,7 +45,23 @@ export interface NextAuthAccountSchame {
   session_state?: string;
 }
 
-export interface UserGuideSchema {
+// Add schema as a constant value (this is what's being imported)
+export const NextAuthAccountSchema = {
+  id: String,
+  userId: String,
+  type: String,
+  provider: String,
+  providerAccountId: String,
+  refresh_token: String,
+  access_token: String,
+  expires_at: Number,
+  token_type: String,
+  scope: String,
+  id_token: String,
+  session_state: String
+};
+
+export interface UserGuide {
   id: string;
   userId: string;
   hasShownWelcomeScreen?: boolean;
@@ -56,3 +72,16 @@ export interface UserGuideSchema {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Add schema as a constant value (this is what's being imported)
+export const UserGuideSchema = {
+  id: String,
+  userId: String,
+  hasShownWelcomeScreen: Boolean,
+  hasShownAgentHelp: Boolean,
+  hasShownSessionHelp: Boolean,
+  hasShownChatHelp: Boolean,
+  hasShownImportAgentHelp: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+};

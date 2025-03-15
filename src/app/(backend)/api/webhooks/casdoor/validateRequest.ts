@@ -18,19 +18,40 @@ interface CasdoorWebhookPayload {
 
 export const validateRequest = async (request: Request, secret?: string) => {
   const payloadString = await request.text();
-  const headerPayload = await headers();
-  const casdoorSecret = headerPayload.get('casdoor-secret')!;
+  const headerPayload = headers();
+  const casdoorSecret = headerPayload.get('casdoor-secret');
+  
   try {
-    if (casdoorSecret === secret) {
-      return JSON.parse(payloadString, (k, v) =>
-        k === 'object' && typeof v === 'string' ? JSON.parse(v) : v,
-      ) as CasdoorWebhookPayload;
-    } else {
+    // Validate the secret first
+    if (!casdoorSecret || casdoorSecret !== secret) {
       console.warn(
         '[Casdoor]: secret verify failed, please check your secret in `CASDOOR_WEBHOOK_SECRET`',
       );
       return;
     }
+    
+    // First parse the main payload
+    const parsedPayload = JSON.parse(payloadString);
+    
+    // Now handle the nested object properly
+    if (parsedPayload && parsedPayload.object && typeof parsedPayload.object === 'string') {
+      try {
+        // Parse the nested object string
+        parsedPayload.object = JSON.parse(parsedPayload.object);
+      } catch (nestedError) {
+        console.error('[Casdoor]: Failed to parse nested object JSON', nestedError);
+        // If we can't parse the object, at least keep it as an object to prevent errors
+        parsedPayload.object = { id: '', displayName: '' };
+      }
+    }
+    
+    // Validate that object has the required properties
+    if (!parsedPayload.object || typeof parsedPayload.object !== 'object' || !parsedPayload.object.id) {
+      console.error('[Casdoor]: Parsed payload is missing required object properties');
+      return;
+    }
+    
+    return parsedPayload as CasdoorWebhookPayload;
   } catch (e) {
     if (!authEnv.CASDOOR_WEBHOOK_SECRET) {
       throw new Error('`CASDOOR_WEBHOOK_SECRET` environment variable is missing.');
