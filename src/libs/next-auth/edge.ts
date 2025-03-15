@@ -2,11 +2,46 @@ import NextAuth from 'next-auth';
 
 import authConfig from './auth.config';
 
-// Ensure config.providers is always an array
-const safeConfig = {
-  ...authConfig,
-  providers: Array.isArray(authConfig.providers) ? authConfig.providers : [],
+// Helper function to ensure arrays
+const ensureArray = (value) => {
+  if (value === null || value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
 };
+
+// Make a completely safe config where we ensure all properties have valid default values
+const createSafeConfig = (inputConfig) => {
+  const safeConfig = {
+    ...inputConfig,
+    providers: ensureArray(inputConfig.providers),
+    callbacks: {
+      // Wrap callbacks to handle errors
+      async jwt(params) {
+        try {
+          const result = await inputConfig?.callbacks?.jwt?.(params);
+          return result || params.token || {};
+        } catch (error) {
+          console.error('[NextAuth] Error in jwt callback:', error);
+          return params.token || {};
+        }
+      },
+      async session(params) {
+        try {
+          const result = await inputConfig?.callbacks?.session?.(params);
+          return result || params.session || {};
+        } catch (error) {
+          console.error('[NextAuth] Error in session callback:', error);
+          return params.session || {};
+        }
+      },
+      // Add other callbacks as needed with similar error handling
+    },
+  };
+  
+  return safeConfig;
+};
+
+// Create a completely safe version of the config
+const safeConfig = createSafeConfig(authConfig);
 
 /**
  * NextAuth initialization without Database adapter
@@ -29,26 +64,4 @@ const safeConfig = {
  * signOut();
  * ```
  */
-export default NextAuth({
-  ...safeConfig,
-  // Add defensive code for any callbacks that might use filter()
-  callbacks: {
-    ...safeConfig.callbacks,
-    async jwt(params) {
-      try {
-        return await safeConfig.callbacks?.jwt?.(params) || params.token;
-      } catch (error) {
-        console.error('[NextAuth] Error in jwt callback:', error);
-        return params.token;
-      }
-    },
-    async session(params) {
-      try {
-        return await safeConfig.callbacks?.session?.(params) || params.session;
-      } catch (error) {
-        console.error('[NextAuth] Error in session callback:', error);
-        return params.session;
-      }
-    },
-  },
-});
+export default NextAuth(safeConfig);

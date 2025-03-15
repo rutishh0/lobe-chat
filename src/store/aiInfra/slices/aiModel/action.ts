@@ -1,5 +1,6 @@
 import isEqual from 'fast-deep-equal';
-import { SWRResponse, mutate } from 'swr';
+import { SWRResponse } from 'swr';
+import { mutate } from 'swr/mutation';
 import { StateCreator } from 'zustand/vanilla';
 
 import { useClientDataSWR } from '@/libs/swr';
