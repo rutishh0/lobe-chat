@@ -15,7 +15,6 @@ import { RouteVariants } from '@/utils/server/routeVariants';
 
 import { OAUTH_AUTHORIZED } from './const/auth';
 
-// Add explicit config for specific routes that need special handling
 export const config = {
   matcher: [
     // include any files in the api or trpc folders that might have an extension
@@ -40,21 +39,12 @@ export const config = {
     '/next-auth/(.*)',
     // ↓ cloud ↓
   ],
-  runtime: 'nodejs', // Explicitly force Node.js runtime for middleware
 };
 
 // Helper to handle API and tRPC routes
 const handleApiRoutes = (request: NextRequest) => {
-  // Force headers that help with runtime compatibility
-  const response = NextResponse.next();
-  
-  // Add runtime hint headers for problematic routes
-  if (request.nextUrl.pathname.startsWith('/trpc/edge')) {
-    response.headers.set('x-middleware-preflight', '1');
-    response.headers.set('x-runtime-env', 'nodejs');
-  }
-  
-  return response;
+  // For tRPC routes, just pass through
+  return NextResponse.next();
 };
 
 const defaultMiddleware = (request: NextRequest) => {
