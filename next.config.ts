@@ -32,8 +32,7 @@ const nextConfig: NextConfig = {
     ],
     webVitalsAttribution: ['CLS', 'LCP'],
     webpackMemoryOptimizations: true,
-    // Add nodeMiddleware flag to support Node.js runtime in middleware
-    nodeMiddleware: true,
+    // Removed: nodeMiddleware flag as it's not supported in Next.js 15.2.3
   },
   
   // Use serverExternalPackages instead of serverComponentsExternalPackages
