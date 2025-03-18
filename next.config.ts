@@ -34,7 +34,18 @@ const nextConfig: NextConfig = {
     ],
     webVitalsAttribution: ['CLS', 'LCP'],
     webpackMemoryOptimizations: true,
+    
+    // Force Node.js runtime for all components
+    runtime: 'nodejs',
+    // Add external packages that might be causing issues
+    serverComponentsExternalPackages: ['pino', 'pino-pretty', '@trpc/server'],
   },
+  
+  // Force Node.js runtime globally
+  serverRuntimeConfig: {
+    runtime: 'nodejs',
+  },
+  
   async headers() {
     return [
       {
@@ -108,6 +119,25 @@ const nextConfig: NextConfig = {
           },
         ],
         source: '/apple-touch-icon.png',
+      },
+      // Add cache control for API routes to avoid caching issues
+      {
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
+        ],
+        source: '/api/:path*',
+      },
+      {
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
+        ],
+        source: '/trpc/:path*',
       },
     ];
   },

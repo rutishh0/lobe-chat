@@ -15,6 +15,7 @@ import { RouteVariants } from '@/utils/server/routeVariants';
 
 import { OAUTH_AUTHORIZED } from './const/auth';
 
+// Add explicit config for specific routes that need special handling
 export const config = {
   matcher: [
     // include any files in the api or trpc folders that might have an extension
@@ -39,14 +40,29 @@ export const config = {
     '/next-auth/(.*)',
     // ↓ cloud ↓
   ],
+  runtime: 'nodejs', // Explicitly force Node.js runtime for middleware
+};
+
+// Helper to handle API and tRPC routes
+const handleApiRoutes = (request: NextRequest) => {
+  // Force headers that help with runtime compatibility
+  const response = NextResponse.next();
+  
+  // Add runtime hint headers for problematic routes
+  if (request.nextUrl.pathname.startsWith('/trpc/edge')) {
+    response.headers.set('x-middleware-preflight', '1');
+    response.headers.set('x-runtime-env', 'nodejs');
+  }
+  
+  return response;
 };
 
 const defaultMiddleware = (request: NextRequest) => {
   const url = new URL(request.url);
 
-  // skip all api requests
+  // Enhanced handling for API and tRPC routes
   if (['/api', '/trpc', '/webapi'].some((path) => url.pathname.startsWith(path))) {
-    return NextResponse.next();
+    return handleApiRoutes(request);
   }
 
   // 1. 从 cookie 中读取用户偏好
@@ -122,9 +138,15 @@ const isProtectedRoute = createRouteMatcher([
 
 const clerkAuthMiddleware = clerkMiddleware(
   async (auth, req) => {
-    if (isProtectedRoute(req)) await auth.protect();
+    try {
+      if (isProtectedRoute(req)) await auth.protect();
 
-    return defaultMiddleware(req);
+      return defaultMiddleware(req);
+    } catch (error) {
+      console.error('[Middleware Error]', error);
+      // Return a basic response to prevent crash
+      return NextResponse.next();
+    }
   },
   {
     // https://github.com/lobehub/lobe-chat/pull/3084
@@ -134,8 +156,22 @@ const clerkAuthMiddleware = clerkMiddleware(
   },
 );
 
-export default authEnv.NEXT_PUBLIC_ENABLE_CLERK_AUTH
-  ? clerkAuthMiddleware
-  : authEnv.NEXT_PUBLIC_ENABLE_NEXT_AUTH
-    ? nextAuthMiddleware
-    : defaultMiddleware;
+// Apply middleware with error handling
+const safeMiddleware = (req: NextRequest) => {
+  try {
+    // Choose the appropriate middleware based on configuration
+    if (authEnv.NEXT_PUBLIC_ENABLE_CLERK_AUTH) {
+      return clerkAuthMiddleware(req);
+    } else if (authEnv.NEXT_PUBLIC_ENABLE_NEXT_AUTH) {
+      return nextAuthMiddleware(req);
+    } else {
+      return defaultMiddleware(req);
+    }
+  } catch (error) {
+    console.error('[Middleware Fatal Error]', error);
+    // Always return a response to prevent crashing
+    return NextResponse.next();
+  }
+};
+
+export default safeMiddleware;
