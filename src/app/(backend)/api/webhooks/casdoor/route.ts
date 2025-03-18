@@ -6,10 +6,19 @@ import { NextAuthUserService } from '@/server/services/nextAuthUser';
 
 import { validateRequest } from './validateRequest';
 
+// Create an empty export to help with next.js static analysis
+export const runtime = 'edge';
+
+// Create a static export to fix issues with build
+export const dynamic = 'force-dynamic';
+
+// Create a simple handler for build time
+export const GET = () => NextResponse.json({ status: 'ok' });
+
 export const POST = async (req: Request): Promise<NextResponse> => {
   // Skip processing during build time
-  if (process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE === 'build') {
-    return NextResponse.json({ status: 'ok' });
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json({ status: 'skipped during build' });
   }
 
   try {
