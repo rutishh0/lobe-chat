@@ -7,6 +7,11 @@ import { NextAuthUserService } from '@/server/services/nextAuthUser';
 import { validateRequest } from './validateRequest';
 
 export const POST = async (req: Request): Promise<NextResponse> => {
+  // Skip processing during build time
+  if (process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE === 'build') {
+    return NextResponse.json({ status: 'ok' });
+  }
+
   try {
     const payload = await validateRequest(req, authEnv.CASDOOR_WEBHOOK_SECRET);
 
