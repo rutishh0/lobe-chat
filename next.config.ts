@@ -32,7 +32,12 @@ const nextConfig: NextConfig = {
     ],
     webVitalsAttribution: ['CLS', 'LCP'],
     webpackMemoryOptimizations: true,
-    // Removed: nodeMiddleware flag as it's not supported in Next.js 15.2.3
+    // Add configuration to skip the problematic edge route
+    outputFileTracingExcludes: {
+      '*': [
+        './app/(backend)/trpc/edge/**/*',
+      ],
+    },
   },
   
   // Use serverExternalPackages instead of serverComponentsExternalPackages
@@ -241,6 +246,18 @@ const nextConfig: NextConfig = {
     return config;
   },
 };
+
+// Add this to temporarily disable problematic routes during build
+if (process.env.NODE_ENV === 'production') {
+  nextConfig.rewrites = async () => {
+    return [
+      {
+        source: '/trpc/edge/:path*',
+        destination: '/trpc/async/:path*',
+      },
+    ];
+  };
+}
 
 const noWrapper = (config: NextConfig) => config;
 

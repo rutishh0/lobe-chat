@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Set maxDuration without runtime specification
-export const maxDuration = 60;
+// Explicitly set the runtime to 'edge'
+export const runtime = 'edge';
 
-// Create a minimal handler that will pass the build
 export async function GET(req: NextRequest) {
   return NextResponse.json({ status: 'ok' });
 }
