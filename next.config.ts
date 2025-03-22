@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
   // Moved from experimental to root level
   outputFileTracingExcludes: {
     '*': [
-      './app/(backend)/trpc/edge/**/*',
+      './app/(backend)/trpc/**/*',
     ],
   },
   
@@ -77,8 +77,8 @@ const nextConfig: NextConfig = {
   // Always apply the rewrites to redirect edge routes to async routes
   rewrites: async () => [
     {
-      source: '/trpc/edge/:path*',
-      destination: '/trpc/async/:path*',
+      source: '/trpc/:path*',
+      destination: '/api/trpc-fallback',
     },
   ],
   transpilePackages: ['pdfjs-dist', 'mermaid'],
