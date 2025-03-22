@@ -1,6 +1,5 @@
-// Skip this route in production to avoid edge runtime errors
-export const dynamic = 'force-static';
-export const generateStaticParams = () => [];
+// For deployment, comment out the edge runtime
+// export const runtime = 'edge';
 
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
 import type { NextRequest } from 'next/server';
@@ -9,9 +8,9 @@ import { pino } from '@/libs/logger';
 import { createContext } from '@/server/context';
 import { edgeRouter } from '@/server/routers/edge';
 
-export const runtime = 'edge';
+// Comment this out for now and let the rewrite handle routing
+// export const runtime = 'edge';
 
-// Wrap the handler in a try/catch to better handle potential errors
 const handler = async (req: NextRequest) => {
   try {
     return await fetchRequestHandler({
