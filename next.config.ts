@@ -32,12 +32,14 @@ const nextConfig: NextConfig = {
     ],
     webVitalsAttribution: ['CLS', 'LCP'],
     webpackMemoryOptimizations: true,
-    // Add configuration to skip the problematic edge route
-    outputFileTracingExcludes: {
-      '*': [
-        './app/(backend)/trpc/edge/**/*',
-      ],
-    },
+    // Moved outputFileTracingExcludes to root level
+  },
+  
+  // Moved from experimental to root level
+  outputFileTracingExcludes: {
+    '*': [
+      './app/(backend)/trpc/edge/**/*',
+    ],
   },
   
   // Use serverExternalPackages instead of serverComponentsExternalPackages
@@ -215,6 +217,13 @@ const nextConfig: NextConfig = {
       source: '/repos',
     },
   ],
+  // Always apply the rewrites to redirect edge routes to async routes
+  rewrites: async () => [
+    {
+      source: '/trpc/edge/:path*',
+      destination: '/trpc/async/:path*',
+    },
+  ],
   transpilePackages: ['pdfjs-dist', 'mermaid'],
 
   webpack(config) {
@@ -246,18 +255,6 @@ const nextConfig: NextConfig = {
     return config;
   },
 };
-
-// Add this to temporarily disable problematic routes during build
-if (process.env.NODE_ENV === 'production') {
-  nextConfig.rewrites = async () => {
-    return [
-      {
-        source: '/trpc/edge/:path*',
-        destination: '/trpc/async/:path*',
-      },
-    ];
-  };
-}
 
 const noWrapper = (config: NextConfig) => config;
 
