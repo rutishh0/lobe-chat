@@ -58,7 +58,6 @@ const nextConfig: NextConfig = {
         ],
         source: '/icons/(.*).(png|jpe?g|gif|svg|ico|webp)',
       },
-      // ... rest of headers remain the same
     ];
   },
   logging: {
@@ -72,9 +71,7 @@ const nextConfig: NextConfig = {
     ? { '*': ['public/**/*', '.next/static/**/*'] }
     : undefined,
   reactStrictMode: true,
-  redirects: async () => [
-    // ... your redirects remain the same
-  ],
+  redirects: async () => [],
   // Always apply the rewrites to redirect edge routes to async routes
   rewrites: async () => [
     {
@@ -85,46 +82,58 @@ const nextConfig: NextConfig = {
   transpilePackages: ['pdfjs-dist', 'mermaid'],
 
   webpack(config, { isServer }) {
-    // Fix for problematic modules during build
+    // Handle Node.js built-in modules and problematic modules
     if (isProd) {
-      // Create fallbacks for problematic Node.js modules
+      // Add fallbacks for Node.js core modules and problematic packages
       config.resolve.fallback = {
         ...config.resolve.fallback,
+        // Node.js core modules
         'fs': false,
         'path': false,
+        'crypto': false,
+        'stream': false,
+        'http': false,
+        'https': false,
+        'zlib': false,
+        'os': false,
+        'net': false,
+        'tls': false,
+        'async_hooks': false,
+        // Node.js modules with node: prefix
+        'node:async_hooks': false,
+        'node:fs': false,
+        'node:path': false,
+        'node:crypto': false,
+        'node:stream': false,
+        'node:http': false,
+        'node:https': false,
+        'node:zlib': false,
+        'node:os': false,
+        'node:net': false,
+        'node:tls': false,
+        // Problematic modules
         'epub': false,
         'epub2': false,
         'zipfile': false,
       };
       
-      // Exclude problematic modules from the bundle
-      if (isServer) {
-        const originalExternals = config.externals?.[0];
-        
-        config.externals = [
-          (ctx, request, callback) => {
-            // Externalize problematic modules
-            if (/epub2|epub|zipfile/.test(request)) {
-              return callback(null, 'commonjs ' + request);
-            }
-            
-            // Continue with original externals
-            if (typeof originalExternals === 'function') {
-              return originalExternals(ctx, request, callback);
-            }
-            callback();
-          },
-        ];
-        
-        if (Array.isArray(config.externals)) {
-          config.externals.unshift((ctx, request, callback) => {
-            if (/epub2|epub|zipfile/.test(request)) {
-              return callback(null, 'commonjs ' + request);
-            }
-            callback();
-          });
-        }
-      }
+      // Get webpack constructor for plugins
+      const webpack = require('webpack');
+      
+      // Use IgnorePlugin to skip problematic modules
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^(epub2|epub|zipfile)$/,
+        })
+      );
+      
+      // Add module replacement for critters
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(
+          /^critters$/,
+          path.resolve(__dirname, './node_modules/next/dist/compiled/critters')
+        )
+      );
     }
     
     // Enable React component monitoring if needed
