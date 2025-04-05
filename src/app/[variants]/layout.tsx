@@ -3,6 +3,7 @@ import { ThemeAppearance } from 'antd-style';
 import { ResolvingViewport } from 'next';
 import { ReactNode } from 'react';
 import { isRtlLang } from 'rtl-detect';
+import Script from 'next/script';
 
 import Analytics from '@/components/Analytics';
 import { DEFAULT_LANG } from '@/const/locale';
@@ -46,6 +47,29 @@ const RootLayout = async ({ children, params, modal }: RootLayoutProps) => {
         </GlobalProvider>
         <Analytics />
         {inVercel && <SpeedInsights />}
+        {/* Load the Lobe Chat Plugin bundle from your Vercel-hosted instance */}
+        <Script
+          src="https://lobe-chat-ashy-tau.vercel.app/sdk.min.js"
+          strategy="beforeInteractive"
+        />
+        {/* Initialize the Lobe Chat Plugin */}
+        <Script id="lobe-chat-init" strategy="afterInteractive">
+          {`
+            if (window.LobeChatPlugin) {
+              window.LobeChatPlugin.mount({
+                selector: '#lobe-chat-container',
+                pluginId: 'your-plugin-id', // Replace with your plugin ID if applicable
+                welcomeMessage: 'Welcome to Elevate! How can I help you today?',
+                config: {
+                  model: 'gemini-2.0-flash',
+                  chatTitle: 'Elevate Chat'
+                }
+              });
+            }
+          `}
+        </Script>
+        {/* Container for the chat widget */}
+        <div id="lobe-chat-container"></div>
       </body>
     </html>
   );
@@ -76,7 +100,7 @@ export const generateViewport = async (props: DynamicLayoutProps): ResolvingView
 export const generateStaticParams = () => {
   const themes: ThemeAppearance[] = ['dark', 'light'];
   const mobileOptions = [true, false];
-  // only static for serveral page, other go to dynamtic
+  // only static for several pages, others go to dynamic
   const staticLocales: Locales[] = [DEFAULT_LANG, 'zh-CN'];
 
   const variants: { variants: string }[] = [];
