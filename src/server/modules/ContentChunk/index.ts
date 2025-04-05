@@ -30,12 +30,7 @@ export class ContentChunk {
     
     // Safely initialize LangChain loader
     try {
-      // Only initialize LangChain loader if not in a build context
-      if (typeof window !== 'undefined' || process.env.NODE_ENV !== 'production') {
-        this.langchainClient = new ChunkingLoader();
-      } else {
-        console.warn('LangChain loader not initialized in build environment');
-      }
+      this.langchainClient = new ChunkingLoader();
     } catch (error) {
       console.warn('LangChain loader initialization failed:', error);
       this.langchainClient = null;
@@ -49,18 +44,21 @@ export class ContentChunk {
     return this.chunkingRules[ext] || ['default'];
   }
 
+  private isEpubFile(filename: string): boolean {
+    return filename.toLowerCase().endsWith('.epub');
+  }
+
   async chunkContent(params: ChunkContentParams): Promise<ChunkResult> {
     const services = this.getChunkingServices(params.fileType);
-    const fileExt = params.filename.split('.').pop()?.toLowerCase();
     
-    // Special handling for problematic file types
-    if (fileExt === 'epub') {
-      console.warn('EPUB processing is currently disabled');
+    // Skip EPUB processing entirely in production
+    if (this.isEpubFile(params.filename) && process.env.NODE_ENV === 'production') {
+      console.warn('EPUB processing disabled in production environment');
       return {
         chunks: [{
-          id: `epub-${Date.now()}`,
+          id: `epub-skipped-${Date.now()}`,
           index: 0,
-          text: `[This EPUB file was not processed: ${params.filename}]`,
+          text: `[EPUB file processing is currently disabled: ${params.filename}]`,
           type: 'TextElement',
           metadata: { source: params.filename },
         }]
@@ -85,17 +83,15 @@ export class ContentChunk {
           default: {
             if (this.langchainClient) {
               return await this.chunkByLangChain(params.filename, params.content);
-            } else {
-              console.warn('LangChain loader not available, falling back to basic text extraction');
-              return this.extractBasicText(params.filename, params.content);
             }
+            break;
           }
         }
       } catch (error) {
         // If this is the last service, throw the error (unless we're in a production build)
         if (service === services.at(-1)) {
           if (process.env.NODE_ENV === 'production') {
-            console.error(`All chunking services failed for ${params.filename}:`, error);
+            console.error(`Chunking failed with all services for ${params.filename}:`, error);
             return this.extractBasicText(params.filename, params.content);
           } else {
             throw error;
@@ -145,76 +141,71 @@ export class ContentChunk {
       strategy: Strategy.Auto,
     });
 
-    // Safely filter and map composite elements
-    const documents = Array.isArray(result.compositeElements) 
-      ? result.compositeElements
-          .filter((e) => e && e.type && !new Set(['PageNumber', 'Footer']).has(e.type))
-          .map((item, index): NewChunkItem => {
-            const {
-              text_as_html,
-              page_number,
-              page_name,
-              image_mime_type,
-              image_base64,
-              parent_id,
-              languages,
-              coordinates,
-            } = item.metadata || {};
+    // after finish partition, we need to filter out some elements
+    const documents = result.compositeElements
+      .filter((e) => e && e.type && !new Set(['PageNumber', 'Footer']).has(e.type))
+      .map((item, index): NewChunkItem => {
+        const {
+          text_as_html,
+          page_number,
+          page_name,
+          image_mime_type,
+          image_base64,
+          parent_id,
+          languages,
+          coordinates,
+        } = item.metadata || {};
 
-            return {
-              id: item.element_id || `element-${index}`,
-              index,
-              metadata: {
-                coordinates,
-                image_base64,
-                image_mime_type,
-                languages,
-                page_name,
-                page_number,
-                parent_id,
-                text_as_html,
-              },
-              text: item.text || '',
-              type: item.type || 'TextElement',
-            };
-          })
-      : [];
+        return {
+          id: item.element_id,
+          index,
+          metadata: {
+            coordinates,
+            image_base64,
+            image_mime_type,
+            languages,
+            page_name,
+            page_number,
+            parent_id,
+            text_as_html,
+          },
+          text: item.text,
+          type: item.type,
+        };
+      });
 
-    // Safely filter and map origin elements
-    const chunks = Array.isArray(result.originElements)
-      ? result.originElements
-          .filter((e) => e && e.type && !new Set(['PageNumber', 'Footer']).has(e.type))
-          .map((item, index): NewUnstructuredChunkItem => {
-            const {
-              text_as_html,
-              page_number,
-              page_name,
-              image_mime_type,
-              image_base64,
-              parent_id,
-              languages,
-              coordinates,
-            } = item.metadata || {};
+    const chunks = result.originElements
+      .filter((e) => e && e.type && !new Set(['PageNumber', 'Footer']).has(e.type))
+      .map((item, index): NewUnstructuredChunkItem => {
+        const {
+          text_as_html,
+          page_number,
+          page_name,
+          image_mime_type,
+          image_base64,
+          parent_id,
+          languages,
+          coordinates,
+        } = item.metadata || {};
 
-            return {
-              compositeId: item.compositeId || '',
-              id: item.element_id || `origin-${index}`,
-              index,
-              metadata: {
-                coordinates,
-                image_base64,
-                image_mime_type,
-                languages,
-                page_name,
-                page_number,
-                text_as_html,
-              },
-              parentId: parent_id,
-              text: item.text || '',
-              type: item.type || 'TextElement',
-            };
-          })
-      : [];
+        return {
+          compositeId: item.compositeId,
+          id: item.element_id,
+          index,
+          metadata: {
+            coordinates,
+            image_base64,
+            image_mime_type,
+            languages,
+            page_name,
+            page_number,
+            text_as_html,
+          },
+          parentId: parent_id,
+          text: item.text,
+          type: item.type,
+        };
+      });
 
     return { chunks: documents, unstructuredChunks: chunks };
   };
@@ -229,15 +220,13 @@ export class ContentChunk {
     
     const res = await this.langchainClient.partitionContent(filename, content);
 
-    const documents = Array.isArray(res) 
-      ? res.map((item, index) => ({
-          id: item.id || `langchain-${index}`,
-          index,
-          metadata: item.metadata || { source: filename },
-          text: item.pageContent || '',
-          type: 'LangChainElement',
-        }))
-      : [];
+    const documents = res.map((item, index) => ({
+      id: item.id,
+      index,
+      metadata: item.metadata,
+      text: item.pageContent,
+      type: 'LangChainElement',
+    }));
 
     return { chunks: documents };
   };

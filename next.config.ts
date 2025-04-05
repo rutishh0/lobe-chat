@@ -85,41 +85,49 @@ const nextConfig: NextConfig = {
   transpilePackages: ['pdfjs-dist', 'mermaid'],
 
   webpack(config, { isServer }) {
-    // Fix epub2 module resolution issue
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'zipfile': isProd ? false : path.resolve('./node_modules/epub2/zipfile'),
-    };
-    
-    // Create fallbacks for problematic modules during build
+    // Fix for problematic modules during build
     if (isProd) {
+      // Create fallbacks for problematic Node.js modules
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        // Add problematic modules that cause build errors
+        'fs': false,
+        'path': false,
         'epub': false,
         'epub2': false,
         'zipfile': false,
       };
-    }
-    
-    // Add condition to ignore certain modules in server build
-    if (isProd && isServer) {
-      const originalEntry = config.entry;
       
-      config.entry = async () => {
-        const entries = await originalEntry();
+      // Exclude problematic modules from the bundle
+      if (isServer) {
+        const originalExternals = config.externals?.[0];
         
-        // This helps with "Module not found" errors during server build
-        if (entries['app/(backend)/trpc/lambda/[trpc]/route']) {
-          entries['app/(backend)/trpc/lambda/[trpc]/route'] = entries['app/(backend)/trpc/lambda/[trpc]/route']
-            .filter((entry: string) => !entry.includes('epub2'));
+        config.externals = [
+          (ctx, request, callback) => {
+            // Externalize problematic modules
+            if (/epub2|epub|zipfile/.test(request)) {
+              return callback(null, 'commonjs ' + request);
+            }
+            
+            // Continue with original externals
+            if (typeof originalExternals === 'function') {
+              return originalExternals(ctx, request, callback);
+            }
+            callback();
+          },
+        ];
+        
+        if (Array.isArray(config.externals)) {
+          config.externals.unshift((ctx, request, callback) => {
+            if (/epub2|epub|zipfile/.test(request)) {
+              return callback(null, 'commonjs ' + request);
+            }
+            callback();
+          });
         }
-        
-        return entries;
-      };
+      }
     }
     
-    // Original webpack config remains here
+    // Enable React component monitoring if needed
     if (enableReactScan) {
       config.plugins.push(
         // @ts-expect-error - This is a custom plugin
