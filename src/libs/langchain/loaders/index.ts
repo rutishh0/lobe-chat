@@ -12,9 +12,9 @@ import { DocxLoader } from './docx';
 import { LatexLoader } from './latex';
 import { MarkdownLoader } from './markdown';
 import { PdfLoader } from './pdf';
-import { PPTXLoader } from './pptx';
+//import { PPTXLoader } from './pptx';
 import { TextLoader } from './txt';
-import { EPubLoader } from './epub';
+//import { EPubLoader } from './epub';
 
 class LangChainError extends Error {
   constructor(message: string) {
@@ -35,10 +35,6 @@ export class ChunkingLoader {
         case 'code': {
           const ext = filename.split('.').pop();
           return await CodeLoader(txt, ext!);
-        }
-
-        case 'ppt': {
-          return await PPTXLoader(fileBlob);
         }
 
         case 'latex': {
@@ -65,10 +61,6 @@ export class ChunkingLoader {
           return await CsVLoader(fileBlob);
         }
 
-        case 'epub': {
-          return await EPubLoader(content);
-        }
-
         default: {
           throw new Error(
             `Unsupported file type [${type}], please check your file is supported, or create report issue here: https://github.com/lobehub/lobe-chat/discussions/3550`,
@@ -81,10 +73,6 @@ export class ChunkingLoader {
   };
 
   private getType = (filename: string): LangChainLoaderType | undefined => {
-    if (filename.endsWith('pptx')) {
-      return 'ppt';
-    }
-
     if (filename.endsWith('docx') || filename.endsWith('doc')) {
       return 'doc';
     }
@@ -103,10 +91,6 @@ export class ChunkingLoader {
 
     if (filename.endsWith('csv')) {
       return 'csv';
-    }
-
-    if (filename.endsWith('epub')) {
-      return 'epub';
     }
 
     const ext = filename.split('.').pop();
