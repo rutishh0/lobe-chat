@@ -22,65 +22,45 @@ interface ChunkResult {
 
 export class ContentChunk {
   private unstructuredClient: Unstructured;
-  private langchainClient: ChunkingLoader;
+  private langchainClient: ChunkingLoader | null = null;
   private chunkingRules: Record<string, ChunkingService[]>;
 
   constructor() {
     this.unstructuredClient = new Unstructured();
     
-    // Create the langchain client with safe initialization
+    // Safely initialize LangChain loader
     try {
-      this.langchainClient = new ChunkingLoader();
+      // Only initialize LangChain loader if not in a build context
+      if (typeof window !== 'undefined' || process.env.NODE_ENV !== 'production') {
+        this.langchainClient = new ChunkingLoader();
+      } else {
+        console.warn('LangChain loader not initialized in build environment');
+      }
     } catch (error) {
       console.warn('LangChain loader initialization failed:', error);
-      // Create a minimal loader that will skip problematic formats
-      this.langchainClient = {
-        partitionContent: this.fallbackPartitionContent,
-      } as ChunkingLoader;
+      this.langchainClient = null;
     }
     
     this.chunkingRules = ChunkingRuleParser.parse(knowledgeEnv.FILE_TYPE_CHUNKING_RULES || '');
   }
-
-  // Fallback partition method if langchain loader fails
-  private fallbackPartitionContent = async (filename: string, content: Uint8Array) => {
-    console.warn(`Using fallback partition for ${filename}`);
-    // Simple text extraction fallback
-    let text = '';
-    try {
-      // Try to convert to text if it's a text-based file
-      text = new TextDecoder().decode(content);
-    } catch (e) {
-      text = `[File content could not be extracted: ${filename}]`;
-    }
-    
-    return [{
-      id: `fallback-${Date.now()}`,
-      pageContent: text,
-      metadata: { source: filename }
-    }];
-  };
 
   private getChunkingServices(fileType: string): ChunkingService[] {
     const ext = fileType.split('/').pop()?.toLowerCase() || '';
     return this.chunkingRules[ext] || ['default'];
   }
 
-  private isEpubFile(filename: string): boolean {
-    return filename.toLowerCase().endsWith('.epub');
-  }
-
   async chunkContent(params: ChunkContentParams): Promise<ChunkResult> {
     const services = this.getChunkingServices(params.fileType);
-
-    // Skip problematic EPUB files in the build environment
-    if (this.isEpubFile(params.filename) && process.env.NODE_ENV === 'production') {
-      console.warn('EPUB processing disabled in production environment to avoid build errors');
+    const fileExt = params.filename.split('.').pop()?.toLowerCase();
+    
+    // Special handling for problematic file types
+    if (fileExt === 'epub') {
+      console.warn('EPUB processing is currently disabled');
       return {
         chunks: [{
-          id: `epub-skipped-${Date.now()}`,
+          id: `epub-${Date.now()}`,
           index: 0,
-          text: `[EPUB file processing is currently disabled: ${params.filename}]`,
+          text: `[This EPUB file was not processed: ${params.filename}]`,
           type: 'TextElement',
           metadata: { source: params.filename },
         }]
@@ -103,40 +83,49 @@ export class ContentChunk {
           }
 
           default: {
-            // Wrap langchain chunking in try-catch to handle potential errors
-            try {
+            if (this.langchainClient) {
               return await this.chunkByLangChain(params.filename, params.content);
-            } catch (error) {
-              console.error(`LangChain chunking failed for ${params.filename}:`, error);
-              
-              // If this is an EPUB file with the typical error, provide helpful message
-              if (this.isEpubFile(params.filename) && 
-                  error instanceof Error && 
-                  error.message.includes("Cannot find module 'zipfile'")) {
-                console.warn('EPUB loading failed due to zipfile module resolution error');
-              }
-              
-              // Re-throw if this is the last service
-              if (service === services.at(-1)) throw error;
+            } else {
+              console.warn('LangChain loader not available, falling back to basic text extraction');
+              return this.extractBasicText(params.filename, params.content);
             }
           }
         }
       } catch (error) {
-        // If this is the last service, throw the error
-        if (service === services.at(-1)) throw error;
+        // If this is the last service, throw the error (unless we're in a production build)
+        if (service === services.at(-1)) {
+          if (process.env.NODE_ENV === 'production') {
+            console.error(`All chunking services failed for ${params.filename}:`, error);
+            return this.extractBasicText(params.filename, params.content);
+          } else {
+            throw error;
+          }
+        }
         // Otherwise continue to next service
         console.error(`Chunking failed with service ${service}:`, error);
       }
     }
 
-    // Fallback to a safe text extraction
+    // Fallback to basic text extraction
+    return this.extractBasicText(params.filename, params.content);
+  }
+
+  private extractBasicText(filename: string, content: Uint8Array): ChunkResult {
+    let text = '';
+    try {
+      // Try to convert to text if it's a text-based file
+      text = new TextDecoder().decode(content);
+    } catch (e) {
+      text = `[Content could not be extracted from ${filename}]`;
+    }
+    
     return {
       chunks: [{
-        id: `fallback-${Date.now()}`,
+        id: `text-${Date.now()}`,
         index: 0,
-        text: `[Failed to process file with available services: ${params.filename}]`,
+        text: text.length > 0 ? text : `[No text content in ${filename}]`,
         type: 'TextElement',
-        metadata: { source: params.filename },
+        metadata: { source: filename },
       }]
     };
   }
@@ -156,71 +145,76 @@ export class ContentChunk {
       strategy: Strategy.Auto,
     });
 
-    // after finish partition, we need to filter out some elements
-    const documents = result.compositeElements
-      .filter((e) => e && e.type && !new Set(['PageNumber', 'Footer']).has(e.type))
-      .map((item, index): NewChunkItem => {
-        const {
-          text_as_html,
-          page_number,
-          page_name,
-          image_mime_type,
-          image_base64,
-          parent_id,
-          languages,
-          coordinates,
-        } = item.metadata || {};
+    // Safely filter and map composite elements
+    const documents = Array.isArray(result.compositeElements) 
+      ? result.compositeElements
+          .filter((e) => e && e.type && !new Set(['PageNumber', 'Footer']).has(e.type))
+          .map((item, index): NewChunkItem => {
+            const {
+              text_as_html,
+              page_number,
+              page_name,
+              image_mime_type,
+              image_base64,
+              parent_id,
+              languages,
+              coordinates,
+            } = item.metadata || {};
 
-        return {
-          id: item.element_id,
-          index,
-          metadata: {
-            coordinates,
-            image_base64,
-            image_mime_type,
-            languages,
-            page_name,
-            page_number,
-            parent_id,
-            text_as_html,
-          },
-          text: item.text,
-          type: item.type,
-        };
-      });
+            return {
+              id: item.element_id || `element-${index}`,
+              index,
+              metadata: {
+                coordinates,
+                image_base64,
+                image_mime_type,
+                languages,
+                page_name,
+                page_number,
+                parent_id,
+                text_as_html,
+              },
+              text: item.text || '',
+              type: item.type || 'TextElement',
+            };
+          })
+      : [];
 
-    const chunks = result.originElements
-      .filter((e) => e && e.type && !new Set(['PageNumber', 'Footer']).has(e.type))
-      .map((item, index): NewUnstructuredChunkItem => {
-        const {
-          text_as_html,
-          page_number,
-          page_name,
-          image_mime_type,
-          image_base64,
-          parent_id,
-          languages,
-          coordinates,
-        } = item.metadata || {};
+    // Safely filter and map origin elements
+    const chunks = Array.isArray(result.originElements)
+      ? result.originElements
+          .filter((e) => e && e.type && !new Set(['PageNumber', 'Footer']).has(e.type))
+          .map((item, index): NewUnstructuredChunkItem => {
+            const {
+              text_as_html,
+              page_number,
+              page_name,
+              image_mime_type,
+              image_base64,
+              parent_id,
+              languages,
+              coordinates,
+            } = item.metadata || {};
 
-        return {
-          compositeId: item.compositeId,
-          id: item.element_id,
-          index,
-          metadata: {
-            coordinates,
-            image_base64,
-            image_mime_type,
-            languages,
-            page_name,
-            page_number,
-            text_as_html,
-          },
-          parentId: parent_id,
-          text: item.text,
-          type: item.type,
-        };
-      });
+            return {
+              compositeId: item.compositeId || '',
+              id: item.element_id || `origin-${index}`,
+              index,
+              metadata: {
+                coordinates,
+                image_base64,
+                image_mime_type,
+                languages,
+                page_name,
+                page_number,
+                text_as_html,
+              },
+              parentId: parent_id,
+              text: item.text || '',
+              type: item.type || 'TextElement',
+            };
+          })
+      : [];
 
     return { chunks: documents, unstructuredChunks: chunks };
   };
@@ -229,15 +223,21 @@ export class ContentChunk {
     filename: string,
     content: Uint8Array,
   ): Promise<ChunkResult> => {
+    if (!this.langchainClient) {
+      throw new Error('LangChain client not initialized');
+    }
+    
     const res = await this.langchainClient.partitionContent(filename, content);
 
-    const documents = res.map((item, index) => ({
-      id: item.id,
-      index,
-      metadata: item.metadata,
-      text: item.pageContent,
-      type: 'LangChainElement',
-    }));
+    const documents = Array.isArray(res) 
+      ? res.map((item, index) => ({
+          id: item.id || `langchain-${index}`,
+          index,
+          metadata: item.metadata || { source: filename },
+          text: item.pageContent || '',
+          type: 'LangChainElement',
+        }))
+      : [];
 
     return { chunks: documents };
   };

@@ -3,6 +3,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 import withSerwistInit from '@serwist/next';
 import type { NextConfig } from 'next';
 import ReactComponentName from 'react-scan/react-component-name/webpack';
+import path from 'path';
 
 const isProd = process.env.NODE_ENV === 'production';
 const buildWithDocker = process.env.DOCKER === 'true';
@@ -83,8 +84,51 @@ const nextConfig: NextConfig = {
   ],
   transpilePackages: ['pdfjs-dist', 'mermaid'],
 
-  webpack(config) {
-    // ... webpack config remains the same
+  webpack(config, { isServer }) {
+    // Fix epub2 module resolution issue
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'zipfile': isProd ? false : path.resolve('./node_modules/epub2/zipfile'),
+    };
+    
+    // Create fallbacks for problematic modules during build
+    if (isProd) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        // Add problematic modules that cause build errors
+        'epub': false,
+        'epub2': false,
+        'zipfile': false,
+      };
+    }
+    
+    // Add condition to ignore certain modules in server build
+    if (isProd && isServer) {
+      const originalEntry = config.entry;
+      
+      config.entry = async () => {
+        const entries = await originalEntry();
+        
+        // This helps with "Module not found" errors during server build
+        if (entries['app/(backend)/trpc/lambda/[trpc]/route']) {
+          entries['app/(backend)/trpc/lambda/[trpc]/route'] = entries['app/(backend)/trpc/lambda/[trpc]/route']
+            .filter((entry: string) => !entry.includes('epub2'));
+        }
+        
+        return entries;
+      };
+    }
+    
+    // Original webpack config remains here
+    if (enableReactScan) {
+      config.plugins.push(
+        // @ts-expect-error - This is a custom plugin
+        new ReactComponentName({
+          filter: /src|libs/,
+        }),
+      );
+    }
+    
     return config;
   },
 };
